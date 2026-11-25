@@ -55,3 +55,14 @@ R8 e redução de recursos estão ativados. O tamanho final depende das ferramen
 - A imagem é processada quando o usuário toca na bolha.
 - A sessão usa um único VirtualDisplay por autorização, conforme as regras atuais de MediaProjection.
 - O uso da API pode gerar custos conforme o provedor e o modelo.
+
+## Coach de Volleyball Legends (modo contínuo)
+
+- Com o CLC ativo e a bolha visível, **segure a bolha por cerca de 1 segundo** para ligar/desligar o Coach.
+- Quando ligado, o CLC captura a tela aproximadamente a cada 12 segundos e envia a imagem ao modelo configurado para receber uma dica curta.
+- As dicas tentam identificar a zona livre da quadra, risco de bloqueio e função provável do personagem. A base inicial de estilos/personagens fica em `VolleyballLegendsKnowledge.kt`.
+- **Toque rápido** na bolha continua abrindo a análise manual.
+- Use um modelo com suporte a imagens/visão. Modelos apenas de texto não conseguem analisar as capturas.
+- O modo contínuo pode consumir bastante API e bateria/dados móveis. Desative segurando a bolha novamente ou parando o serviço.
+- A captura só ocorre após a autorização do Android para MediaProjection. O Coach fornece dicas visuais; não toca, mira ou controla o jogo.
+- A base de personagens é inicial e pode ficar desatualizada após patches do Volleyball Legends; recomendações dependem do que estiver visível na captura.
