@@ -40,7 +40,7 @@ class MainActivity : Activity() {
         }, LinearLayout.LayoutParams(dp(64), dp(64)).apply { bottomMargin = dp(18) })
 
         root.addView(TextView(this).apply {
-            text = "ScreenAI"
+            text = "Potato AI"
             textSize = 28f
             setTypeface(null, Typeface.BOLD)
             setTextColor(resColor(R.color.text_primary))
