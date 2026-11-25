@@ -33,6 +33,10 @@ class AssistActivity : Activity() {
     private lateinit var endpointPath: String
     private lateinit var model: String
     private lateinit var systemPrompt: String
+    private lateinit var authHeaderName: String
+    private lateinit var authPrefix: String
+    private lateinit var extraHeaders: String
+    private var jsonResponse = false
     private var temperature = 0.5f
     private var maxTokens = 900
     private var contextTurns = 6
@@ -52,6 +56,10 @@ class AssistActivity : Activity() {
         endpointPath = prefs.getString("endpoint_path", "/chat/completions") ?: "/chat/completions"
         model = prefs.getString("api_model", "gpt-4o-mini") ?: "gpt-4o-mini"
         systemPrompt = prefs.getString("system_prompt", "Você é o CLC, um assistente visual útil. Responda em português, com clareza e precisão.") ?: ""
+        authHeaderName = prefs.getString("auth_header_name", "Authorization") ?: "Authorization"
+        authPrefix = prefs.getString("auth_prefix", "Bearer") ?: "Bearer"
+        extraHeaders = prefs.getString("extra_headers", "{}") ?: "{}"
+        jsonResponse = prefs.getBoolean("json_response", false)
         temperature = prefs.getFloat("temperature", 0.5f)
         maxTokens = prefs.getInt("max_tokens", 900)
         contextTurns = prefs.getInt("context_turns", 6)
@@ -176,13 +184,21 @@ class AssistActivity : Activity() {
                 val endpoint = baseUrl + if (endpointPath.startsWith("/")) endpointPath else "/$endpointPath"
                 connection = URL(endpoint).openConnection() as HttpURLConnection
                 connection.requestMethod = "POST"
-                connection.setRequestProperty("Authorization", "Bearer $apiKey")
+                val authValue = listOf(authPrefix, apiKey).filter { it.isNotBlank() }.joinToString(" ")
+                if (authHeaderName.isNotBlank() && authValue.isNotBlank()) connection.setRequestProperty(authHeaderName, authValue)
+                val headers = JSONObject(extraHeaders)
+                val headerIterator = headers.keys()
+                while (headerIterator.hasNext()) {
+                    val header = headerIterator.next()
+                    connection.setRequestProperty(header, headers.get(header).toString())
+                }
                 connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 connection.connectTimeout = 15000
                 connection.readTimeout = timeoutSeconds * 1000
                 connection.doOutput = true
                 val body = JSONObject().put("model", model).put("messages", buildMessages())
                     .put("max_tokens", maxTokens).put("temperature", temperature).put("stream", false)
+                if (jsonResponse) body.put("response_format", JSONObject().put("type", "json_object"))
                 connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
                 val status = connection.responseCode
                 val raw = (if (status in 200..299) connection.inputStream else connection.errorStream)
