@@ -99,12 +99,17 @@ class ScreenAssistService : Service() {
                 image.close()
                 val cropped = Bitmap.createBitmap(full, 0, 0, width, height)
                 full.recycle()
+                if (coachMode) {
+                    analyzeGameFrame(cropped)
+                    cropped.recycle()
+                } else {
                 val file = File(cacheDir, "clc_capture.jpg")
                 FileOutputStream(file).use { cropped.compress(Bitmap.CompressFormat.JPEG, 92, it) }
                 cropped.recycle()
                 startActivity(Intent(this, AssistActivity::class.java)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     .putExtra("imagePath", file.absolutePath))
+                }
             } catch (_: Exception) {
                 try { image.close() } catch (_: Exception) {}
                 Toast.makeText(this, "Não foi possível processar a captura.", Toast.LENGTH_SHORT).show()
@@ -166,6 +171,89 @@ class ScreenAssistService : Service() {
         wm?.addView(icon, params)
     }
 
+    private fun toggleCoach() {
+        coachMode = !coachMode
+        if (coachMode) {
+            Toast.makeText(this, "Coach de Volleyball Legends ATIVADO · análise a cada 12 s", Toast.LENGTH_LONG).show()
+            handler.removeCallbacks(coachLoop)
+            handler.post(coachLoop)
+        } else {
+            handler.removeCallbacks(coachLoop)
+            Toast.makeText(this, "Coach desativado", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun captureForCoach() {
+        if (!coachMode || captureRequested || coachBusy) return
+        if (reader == null || display == null) return
+        captureRequested = true
+        handler.removeCallbacks(captureTimeout)
+        handler.postDelayed(captureTimeout, 2500)
+    }
+
+    private fun analyzeGameFrame(bitmap: Bitmap) {
+        if (!coachMode || coachBusy) return
+        val prefs = getSharedPreferences("clc_settings", MODE_PRIVATE)
+        val key = prefs.getString("api_key", "") ?: ""
+        val base = (prefs.getString("api_base_url", "https://api.openai.com/v1") ?: "").trim().trimEnd('/')
+        val path = prefs.getString("endpoint_path", "/chat/completions") ?: "/chat/completions"
+        val model = prefs.getString("api_model", "gpt-4.1-mini") ?: "gpt-4.1-mini"
+        if (key.isBlank()) {
+            bitmap.recycle()
+            coachMode = false
+            handler.removeCallbacks(coachLoop)
+            Toast.makeText(this, "Configure a chave da API nas configurações do CLC.", Toast.LENGTH_LONG).show()
+            return
+        }
+        val maxDimension = prefs.getInt("image_max_dimension", 1024).coerceIn(512, 1600)
+        val ratio = minOf(1f, maxDimension.toFloat() / maxOf(bitmap.width, bitmap.height))
+        val scaled = if (ratio < 1f) Bitmap.createScaledBitmap(bitmap, (bitmap.width * ratio).toInt(), (bitmap.height * ratio).toInt(), true) else bitmap
+        val bytes = ByteArrayOutputStream()
+        scaled.compress(Bitmap.CompressFormat.JPEG, 65, bytes)
+        if (scaled !== bitmap) scaled.recycle()
+        val encoded = Base64.encodeToString(bytes.toByteArray(), Base64.NO_WRAP)
+        coachBusy = true
+        thread {
+            var connection: HttpURLConnection? = null
+            val advice = try {
+                val endpoint = base + if (path.startsWith("/")) path else "/$path"
+                connection = URL(endpoint).openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                val prefix = prefs.getString("auth_prefix", "Bearer") ?: "Bearer"
+                val header = prefs.getString("auth_header_name", "Authorization") ?: "Authorization"
+                val authValue = listOf(prefix, key).filter { it.isNotBlank() }.joinToString(" ")
+                if (header.isNotBlank()) connection.setRequestProperty(header, authValue)
+                val extras = JSONObject(prefs.getString("extra_headers", "{}") ?: "{}")
+                val iterator = extras.keys()
+                while (iterator.hasNext()) { val name = iterator.next(); connection.setRequestProperty(name, extras.get(name).toString()) }
+                connection.setRequestProperty("Content-Type", "application/json")
+                connection.connectTimeout = 12000
+                connection.readTimeout = 20000
+                connection.doOutput = true
+                val instruction = "Você é o CLC Coach, especialista em Roblox Volleyball Legends. Analise a captura. Responda em português do Brasil, em no máximo 4 linhas curtas. Identifique apenas o que estiver visível. Se a quadra estiver visível, indique a melhor ação imediata, a zona aparentemente livre (esquerda/centro/direita; fundo/curta) e o risco de bloqueio. Se aparecer seleção/personagem, recomende uma função compatível apenas se identificar o estilo com confiança. Se a imagem não permitir análise, diga o que falta. Não invente informações e nunca controle o jogo.\n\n" + VolleyballLegendsKnowledge.REFERENCE
+                val content = JSONArray()
+                    .put(JSONObject().put("type", "text").put("text", instruction))
+                    .put(JSONObject().put("type", "image_url").put("image_url", JSONObject().put("url", "data:image/jpeg;base64,$encoded")))
+                val messages = JSONArray().put(JSONObject().put("role", "user").put("content", content))
+                val body = JSONObject().put("model", model).put("messages", messages)
+                    .put("max_tokens", 180).put("temperature", 0.2).put("stream", false)
+                connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
+                val status = connection.responseCode
+                val raw = (if (status in 200..299) connection.inputStream else connection.errorStream)?.bufferedReader()?.use { it.readText() }.orEmpty()
+                if (status !in 200..299) throw IllegalStateException("HTTP $status: ${raw.take(180)}")
+                JSONObject(raw).getJSONArray("choices").getJSONObject(0).getJSONObject("message").optString("content", "Sem dica disponível.")
+            } catch (e: Exception) {
+                "Coach: ${e.message ?: "falha na análise"}"
+            } finally {
+                connection?.disconnect()
+            }
+            handler.post {
+                coachBusy = false
+                if (coachMode && advice.isNotBlank()) Toast.makeText(this, advice.take(450), Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     private fun capture() {
         if (captureRequested) return
         if (reader == null || display == null) {
@@ -179,6 +267,8 @@ class ScreenAssistService : Service() {
 
     override fun onDestroy() {
         handler.removeCallbacks(captureTimeout)
+        handler.removeCallbacks(coachLoop)
+        coachMode = false
         captureRequested = false
         try { bubble?.let { wm?.removeView(it) } } catch (_: Exception) {}
         display?.release()
