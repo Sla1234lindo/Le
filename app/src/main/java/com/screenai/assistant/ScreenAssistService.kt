@@ -14,6 +14,8 @@ import android.os.*
 import android.view.*
 import android.widget.ImageView
 import android.widget.Toast
+import android.speech.tts.TextToSpeech
+import java.util.Locale
 import java.io.File
 import java.io.FileOutputStream
 import android.util.Base64
@@ -25,6 +27,25 @@ import java.net.URL
 import kotlin.concurrent.thread
 
 class ScreenAssistService : Service() {
+    private var speech: TextToSpeech? = null
+    private var speechReady = false
+
+    override fun onCreate() {
+        super.onCreate()
+        speech = TextToSpeech(applicationContext) { status ->
+            speechReady = status == TextToSpeech.SUCCESS
+            if (speechReady) speech?.language = Locale("pt", "BR")
+        }
+    }
+
+    private fun speakAdvice(text: String) {
+        if (speechReady && speech != null) {
+            speech?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "clc_coach_advice")
+        } else {
+            Toast.makeText(this, text.take(450), Toast.LENGTH_LONG).show()
+        }
+    }
+
     private var projection: MediaProjection? = null
     private var display: VirtualDisplay? = null
     private var reader: ImageReader? = null
@@ -144,29 +165,58 @@ class ScreenAssistService : Service() {
         ).apply { gravity = Gravity.TOP or Gravity.END; x = 18; y = 300 }
 
         icon.setOnTouchListener(object : View.OnTouchListener {
-            var startX = 0f; var startY = 0f; var originX = 0; var originY = 0; var moved = false; var downAt = 0L
+            var startX = 0f
+            var startY = 0f
+            var originX = 0
+            var originY = 0
+            var moved = false
+            var longPressTriggered = false
+            val slop = (10 * resources.displayMetrics.density).toInt()
+            val longPress = Runnable {
+                if (!moved) {
+                    longPressTriggered = true
+                    toggleCoach()
+                }
+            }
+
             override fun onTouch(view: View, event: MotionEvent): Boolean {
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
-                        startX = event.rawX; startY = event.rawY; originX = params.x; originY = params.y; moved = false; downAt = System.currentTimeMillis()
+                        startX = event.rawX
+                        startY = event.rawY
+                        originX = params.x
+                        originY = params.y
+                        moved = false
+                        longPressTriggered = false
+                        handler.removeCallbacks(longPress)
+                        handler.postDelayed(longPress, 650L)
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
                         val dx = (startX - event.rawX).toInt()
                         val dy = (event.rawY - startY).toInt()
-                        if (kotlin.math.abs(dx) > 8 || kotlin.math.abs(dy) > 8) moved = true
-                        params.x = originX + dx; params.y = originY + dy
-                        try { wm?.updateViewLayout(view, params) } catch (_: Exception) {}
-                        return true
-                    }
-                    MotionEvent.ACTION_UP -> {
-                        if (!moved) {
-                            if (System.currentTimeMillis() - downAt >= 650L) toggleCoach() else capture()
+                        if (kotlin.math.abs(dx) > slop || kotlin.math.abs(dy) > slop) {
+                            moved = true
+                            handler.removeCallbacks(longPress)
+                        }
+                        if (moved) {
+                            params.x = (originX + dx).coerceAtLeast(0)
+                            params.y = (originY + dy).coerceAtLeast(0)
+                            try { wm?.updateViewLayout(view, params) } catch (_: Exception) {}
                         }
                         return true
                     }
+                    MotionEvent.ACTION_UP -> {
+                        handler.removeCallbacks(longPress)
+                        if (!moved && !longPressTriggered) capture()
+                        return true
+                    }
+                    MotionEvent.ACTION_CANCEL -> {
+                        handler.removeCallbacks(longPress)
+                        return true
+                    }
                 }
-                return false
+                return true
             }
         })
         bubble = icon
@@ -251,7 +301,7 @@ class ScreenAssistService : Service() {
             }
             handler.post {
                 coachBusy = false
-                if (coachMode && advice.isNotBlank()) Toast.makeText(this, advice.take(450), Toast.LENGTH_LONG).show()
+                if (coachMode && advice.isNotBlank()) speakAdvice(advice)
             }
         }
     }
@@ -276,6 +326,8 @@ class ScreenAssistService : Service() {
         display?.release()
         reader?.close()
         projection?.stop()
+        try { speech?.stop(); speech?.shutdown() } catch (_: Exception) {}
+        speech = null
         super.onDestroy()
     }
 }
