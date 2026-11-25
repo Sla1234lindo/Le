@@ -1,0 +1,19 @@
+<resources>
+    <color name="primary">#7C4DFF</color>
+    <color name="primary_dark">#5E35B1</color>
+    <color name="primary_light">#B39DFF</color>
+    <color name="accent_pink">#FF4D9E</color>
+
+    <color name="bg_app">#F6F4FF</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_alt">#F0ECFF</color>
+    <color name="outline">#E3DEFA</color>
+
+    <color name="text_primary">#1B1B23</color>
+    <color name="text_secondary">#6E6E7A</color>
+    <color name="text_on_primary">#FFFFFF</color>
+    <color name="text_hint">#A6A2BD</color>
+
+    <color name="ripple">#33FFFFFF</color>
+    <color name="ripple_dark">#1F000000</color>
+</resources>

@@ -13,7 +13,7 @@ import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.*
 import android.view.*
-import android.widget.TextView
+import android.widget.ImageView
 import java.io.File
 import java.io.FileOutputStream
 
@@ -45,9 +45,18 @@ class ScreenAssistService : Service() {
     }
     private fun showBubble() {
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
-        val tv = TextView(this).apply { text = "AI"; textSize = 16f; setTextColor(0xffffffff.toInt()); gravity = Gravity.CENTER; setBackgroundResource(android.R.drawable.btn_default); elevation = 12f; setOnClickListener { capture() } }
+        val sizePx = (56 * resources.displayMetrics.density).toInt()
+        val paddingPx = (14 * resources.displayMetrics.density).toInt()
+        val tv = ImageView(this).apply {
+            setImageResource(R.drawable.ic_sparkle)
+            setBackgroundResource(R.drawable.bg_bubble)
+            scaleType = ImageView.ScaleType.CENTER
+            setPadding(paddingPx, paddingPx, paddingPx, paddingPx)
+            elevation = 14f
+            setOnClickListener { capture() }
+        }
         val type = if (Build.VERSION.SDK_INT >= 26) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE
-        val lp = WindowManager.LayoutParams(58, 58, type, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN, PixelFormat.TRANSLUCENT).apply { gravity = Gravity.TOP or Gravity.END; x = 18; y = 300 }
+        val lp = WindowManager.LayoutParams(sizePx, sizePx, type, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN, PixelFormat.TRANSLUCENT).apply { gravity = Gravity.TOP or Gravity.END; x = 18; y = 300 }
         tv.setOnTouchListener(object : View.OnTouchListener { var sx=0f; var sy=0f; var ox=0; var oy=0; var moved=false
             override fun onTouch(v: View, e: MotionEvent): Boolean { when(e.action) { MotionEvent.ACTION_DOWN -> { sx=e.rawX; sy=e.rawY; ox=lp.x; oy=lp.y; moved=false; return true }; MotionEvent.ACTION_MOVE -> { val dx=(sx-e.rawX).toInt(); val dy=(e.rawY-sy).toInt(); if(kotlin.math.abs(dx)>8||kotlin.math.abs(dy)>8)moved=true; lp.x=ox+dx; lp.y=oy+dy; wm?.updateViewLayout(v,lp); return true }; MotionEvent.ACTION_UP -> { if(!moved) capture(); return true } }; return false }
         })
