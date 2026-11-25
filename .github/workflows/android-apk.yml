@@ -5,6 +5,9 @@ on:
   push:
     branches: [ main, master ]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,3 +30,13 @@ jobs:
         with:
           name: ScreenAI-debug-apk
           path: app/build/outputs/apk/debug/*.apk
+      - name: Commit APK to dist branch
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/*.apk dist/ScreenAI-debug.apk
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B dist-apk
+          git add -f dist/ScreenAI-debug.apk
+          git commit -m "Build APK ${{ github.sha }}" --allow-empty
+          git push --force origin dist-apk
