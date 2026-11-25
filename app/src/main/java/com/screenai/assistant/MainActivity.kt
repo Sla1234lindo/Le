@@ -234,7 +234,7 @@ class MainActivity : Activity() {
     private fun valueText() = TextView(this).apply { textSize = 12f; setTextColor(color(R.color.primary)) }
     private fun field(h: String, v: String, secret: Boolean = false, multiline: Boolean = false) = EditText(this).apply {
         hint = h; setHintTextColor(color(R.color.text_hint)); setTextColor(color(R.color.text_primary))
-        textSize = 14f; singleLine = !multiline
+        textSize = 14f; setSingleLine(!multiline)
         inputType = if (secret) 129 else if (multiline) android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE else android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI
         setBackgroundResource(R.drawable.bg_input); setPadding(dp(13), dp(11), dp(13), dp(11)); setText(v)
     }
