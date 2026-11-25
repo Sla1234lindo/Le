@@ -1,34 +1,54 @@
 # CLC — Assistente visual para Android
 
-Assistente visual com bolha flutuante. A captura só acontece quando o usuário toca na bolha; depois, é possível conversar com uma IA sobre a mesma imagem.
+CLC é um assistente visual com bolha flutuante. A captura é iniciada pelo usuário e a imagem só é enviada quando uma pergunta é enviada.
 
 ## Recursos
 
-- Captura de tela iniciada pelo usuário usando a permissão oficial do Android.
-- Perguntas de acompanhamento sobre a captura atual.
-- Provedor configurável por URL base, chave de API e nome do modelo.
-- Compatibilidade com APIs OpenAI Chat Completions que aceitem entrada de imagem (vision).
-- Atalhos para resumir, explicar e sugerir ações.
-- Redimensionamento e compressão JPEG antes do envio.
-- Interface leve, sem bibliotecas visuais externas.
+- Bolha flutuante móvel para iniciar captura.
+- Uma sessão MediaProjection por autorização; o mesmo VirtualDisplay é reutilizado durante a sessão.
+- Chat com várias mensagens e perguntas de acompanhamento sobre a mesma captura.
+- Copiar resposta e limpar conversa.
+- Provedor, URL base, caminho de endpoint, modelo e chave configuráveis.
+- Presets para OpenAI, OpenRouter, Groq e Together AI, além de modo personalizado.
+- Teste de conexão com o provedor.
+- Temperatura, limite de tokens, tamanho do contexto e prompt de sistema configuráveis.
+- Resolução máxima, qualidade JPEG e timeout configuráveis.
+- Tema que acompanha o modo claro/escuro do Android.
+- Redimensionamento e compressão da imagem antes do envio.
+- R8 e redução de recursos habilitados para controlar o tamanho do APK.
 
-## Configurar a IA
+## Provedores de IA
 
-Na tela inicial, informe a URL base, o modelo e sua chave. Exemplo de URL base OpenAI: `https://api.openai.com/v1`. Use a URL base documentada pelo provedor que escolher.
+O CLC envia requisições para o caminho configurado (por padrão `/chat/completions`) no formato OpenAI Chat Completions. O provedor precisa aceitar imagens no formato `image_url` para análise visual. Compatibilidade com texto, isoladamente, não garante suporte a visão.
 
-O CLC acrescenta `/chat/completions` automaticamente, a menos que a URL já termine nesse caminho. O provedor precisa suportar o formato OpenAI Chat Completions e imagens; compatibilidade apenas com texto não é suficiente para analisar capturas.
+Para configurar um provedor personalizado, informe a URL base, caminho do endpoint, ID exato do modelo e chave fornecidos pelo serviço. Não presuma que a URL de painel, uma chave ou uma URL de convite seja a URL da API.
 
-**Nunca coloque chaves reais no código, README, commits ou prints.** A chave fica nas preferências privadas do app. Para distribuição pública, prefira um backend próprio ou armazenamento seguro.
+**Nunca publique chaves reais no código, commits, README ou prints.** O CLC salva a chave nas preferências privadas do app, mas isso não é um cofre inviolável em aparelhos comprometidos ou com root. Para distribuir o aplicativo a outras pessoas, considere um backend próprio em vez de embutir uma chave compartilhada.
+
+## Configurações da IA
+
+- Temperatura: de 0,0 a 2,0.
+- Tokens máximos: de 64 a 16.000.
+- Contexto: de 1 a 20 turnos.
+- Prompt de sistema personalizado.
+- Caminho do endpoint personalizável.
+- Timeout de 10 a 180 segundos.
+
+## Configurações da captura
+
+- Dimensão máxima: 768, 1024, 1280 ou 1600 pixels.
+- Qualidade JPEG: 40% a 95%.
+- Imagem reduzida antes da codificação Base64.
 
 ## Compilar
 
 Requisitos: Android Studio recente, JDK 17 e Android SDK 35. Abra o projeto e use **Build > Build APK(s)**.
 
-R8 e a redução de recursos estão ativados nos builds debug e release. O tamanho final depende das ferramentas e da arquitetura; 50 MB é uma meta a medir no APK gerado, não uma garantia.
+R8 e redução de recursos estão ativados. O tamanho final depende das ferramentas e da arquitetura; 50 MB é uma meta que deve ser medida no APK gerado.
 
-## Privacidade
+## Privacidade e plataforma
 
-- Não existe captura contínua: é necessária ação explícita do usuário.
-- A imagem só é enviada quando uma pergunta é enviada.
-- Conteúdo protegido por DRM ou bloqueado pelo Android não pode ser capturado.
+- A captura exige autorização explícita do Android.
+- A imagem é processada quando o usuário toca na bolha.
+- A sessão usa um único VirtualDisplay por autorização, conforme as regras atuais de MediaProjection.
 - O uso da API pode gerar custos conforme o provedor e o modelo.
