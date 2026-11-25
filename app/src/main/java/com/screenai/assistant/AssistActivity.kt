@@ -244,7 +244,7 @@ class AssistActivity : Activity() {
     }
 
     private fun clearConversation() {
-        conversation.clear()
+        while (conversation.length() > 0) conversation.remove(conversation.length() - 1)
         lastAnswer = ""
         chat.removeAllViews()
         addMessage("CLC", "Conversa limpa. A próxima pergunta usará novamente a captura original.", false)
