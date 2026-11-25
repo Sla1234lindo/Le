@@ -160,7 +160,9 @@ class ScreenAssistService : Service() {
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
-                        if (!moved) {\n                            if (System.currentTimeMillis() - downAt >= 650L) toggleCoach() else capture()\n                        }
+                        if (!moved) {
+                            if (System.currentTimeMillis() - downAt >= 650L) toggleCoach() else capture()
+                        }
                         return true
                     }
                 }
