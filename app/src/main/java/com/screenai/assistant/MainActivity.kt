@@ -16,7 +16,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(28, 32, 28, 24); gravity = Gravity.CENTER_VERTICAL }
-        root.addView(TextView(this).apply { text = "ScreenAI"; textSize = 30f; setTextColor(0xff20202a); setTypeface(null, 1) })
+        root.addView(TextView(this).apply { text = "ScreenAI"; textSize = 30f; setTextColor(0xff20202a.toInt()); setTypeface(null, 1) })
         root.addView(TextView(this).apply { text = "Assistente que explica o que aparece na sua tela."; textSize = 16f; setPadding(0, 8, 0, 22) })
         root.addView(TextView(this).apply { text = "Chave da API OpenAI (necessária para respostas):"; textSize = 14f })
         key = EditText(this).apply { hint = "sk-..."; inputType = 129; setText(getPreferences(0).getString("api_key", "")) }
