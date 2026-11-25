@@ -33,7 +33,10 @@ class MainActivity : Activity() {
     private lateinit var imageQuality: SeekBar
     private lateinit var imageQualityValue: TextView
     private lateinit var timeout: EditText
-    private lateinit var darkMode: Switch
+    private lateinit var authHeaderName: EditText
+    private lateinit var authPrefix: EditText
+    private lateinit var extraHeaders: EditText
+    private lateinit var responseFormat: Spinner
     private lateinit var testButton: Button
     private val prefs by lazy { getSharedPreferences("clc_settings", MODE_PRIVATE) }
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
@@ -53,15 +56,7 @@ class MainActivity : Activity() {
         heading.addView(TextView(this).apply { text = "CLC"; textSize = 30f; typeface = Typeface.DEFAULT_BOLD; setTextColor(color(R.color.text_primary)) })
         heading.addView(TextView(this).apply { text = "Seu espaço de inteligência"; textSize = 13f; setTextColor(color(R.color.text_secondary)) })
         top.addView(heading)
-        darkMode = Switch(this).apply {
-            text = "Modo escuro"; textSize = 12f; setTextColor(color(R.color.text_primary))
-            isChecked = prefs.getBoolean("dark_mode", false)
-            setOnCheckedChangeListener { _, checked ->
-                prefs.edit().putBoolean("dark_mode", checked).apply()
-                recreate()
-            }
-        }
-        top.addView(darkMode)
+        top.addView(TextView(this).apply { text = "Tema do sistema"; textSize = 11f; setTextColor(color(R.color.text_secondary)) })
         root.addView(top, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(18) })
 
         val hero = card().apply { gravity = Gravity.CENTER; setPadding(dp(18), dp(20), dp(18), dp(20)) }
@@ -112,6 +107,16 @@ class MainActivity : Activity() {
         provider.addView(label("Chave de API"))
         apiKey = field("Cole sua chave privada", prefs.getString("api_key", "") ?: "", true)
         provider.addView(apiKey, fieldParams())
+        provider.addView(label("Nome do cabeçalho de autenticação"))
+        authHeaderName = field("Authorization", prefs.getString("auth_header_name", "Authorization") ?: "Authorization")
+        provider.addView(authHeaderName, fieldParams())
+        provider.addView(label("Prefixo da chave (ex.: Bearer)"))
+        authPrefix = field("Bearer", prefs.getString("auth_prefix", "Bearer") ?: "Bearer")
+        provider.addView(authPrefix, fieldParams())
+        provider.addView(label("Cabeçalhos extras em JSON (opcional)"))
+        extraHeaders = field("{\"HTTP-Referer\":\"https://seusite.com\"}", prefs.getString("extra_headers", "") ?: "", multiline = true)
+        extraHeaders.minLines = 2
+        provider.addView(extraHeaders, LinearLayout.LayoutParams(-1, dp(76)))
         provider.addView(note("Use a URL base e o ID de modelo indicados pelo seu provedor. A API precisa aceitar Chat Completions e imagens para analisar capturas."))
         root.addView(provider, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(14) })
 
@@ -138,6 +143,12 @@ class MainActivity : Activity() {
         systemPrompt.maxLines = 7
         intelligence.addView(systemPrompt, LinearLayout.LayoutParams(-1, dp(112)))
         intelligence.addView(note("Essa instrução define o comportamento padrão do CLC em todas as conversas."))
+        intelligence.addView(label("Formato da resposta"))
+        responseFormat = Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, listOf("Texto normal", "JSON estruturado"))
+            setSelection(if (prefs.getBoolean("json_response", false)) 1 else 0)
+        }
+        intelligence.addView(responseFormat, fieldParams())
         root.addView(intelligence, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(14) })
 
         val capture = card()
@@ -235,6 +246,11 @@ class MainActivity : Activity() {
         if (parsed == null || parsed.scheme !in listOf("https", "http") || parsed.host.isNullOrBlank()) { baseUrl.error = "Informe uma URL válida"; return false }
         if (selectedModel.isBlank()) { model.error = "Informe o ID do modelo"; return false }
         if (key.isBlank()) { apiKey.error = "Informe a chave de API"; return false }
+        val headerName = authHeaderName.text.toString().trim()
+        val prefix = authPrefix.text.toString().trim()
+        if (!headerName.matches(Regex("[A-Za-z0-9-]+")) || prefix.contains("\\n") || prefix.contains("\\r")) { authHeaderName.error = "Cabeçalho ou prefixo inválido"; return false }
+        val extra = try { if (extraHeaders.text.toString().isBlank()) JSONObject() else JSONObject(extraHeaders.text.toString()) } catch (_: Exception) { extraHeaders.error = "Informe um objeto JSON válido"; return false }
+        if (extra.keys().asSequence().any { !it.matches(Regex("[A-Za-z0-9-]+")) }) { extraHeaders.error = "Nome de cabeçalho inválido"; return false }
         if (!path.startsWith("/") || path.contains("..")) { endpointPath.error = "Caminho inválido"; return false }
         val tokens = maxTokens.text.toString().toIntOrNull()?.coerceIn(64, 16000) ?: run { maxTokens.error = "Use um número entre 64 e 16000"; return false }
         val turns = contextTurns.text.toString().toIntOrNull()?.coerceIn(1, 20) ?: run { contextTurns.error = "Use de 1 a 20 turnos"; return false }
@@ -243,10 +259,11 @@ class MainActivity : Activity() {
         prefs.edit()
             .putString("api_key", key).putString("api_base_url", url).putString("api_model", selectedModel)
             .putString("endpoint_path", path).putString("system_prompt", systemPrompt.text.toString().trim())
+            .putString("auth_header_name", headerName).putString("auth_prefix", prefix).putString("extra_headers", extra.toString())
+            .putBoolean("json_response", responseFormat.selectedItemPosition == 1)
             .putFloat("temperature", temperature.progress / 10f).putInt("max_tokens", tokens)
             .putInt("context_turns", turns).putInt("image_max_dimension", dimensions[imageSize.selectedItemPosition])
-            .putInt("image_quality", imageQuality.progress + 40).putInt("timeout_seconds", seconds)
-            .putBoolean("dark_mode", darkMode.isChecked).apply()
+            .putInt("image_quality", imageQuality.progress + 40).putInt("timeout_seconds", seconds).apply()
         return true
     }
 
@@ -262,7 +279,12 @@ class MainActivity : Activity() {
             val result = try {
                 connection = URL(url).openConnection() as HttpURLConnection
                 connection.requestMethod = "POST"
-                connection.setRequestProperty("Authorization", "Bearer $key")
+                val authName = prefs.getString("auth_header_name", "Authorization") ?: "Authorization"
+                val authPrefixValue = prefs.getString("auth_prefix", "Bearer") ?: "Bearer"
+                connection.setRequestProperty(authName, listOf(authPrefixValue, key).filter { it.isNotBlank() }.joinToString(" "))
+                val extra = JSONObject(prefs.getString("extra_headers", "{}") ?: "{}")
+                val iterator = extra.keys()
+                while (iterator.hasNext()) { val header = iterator.next(); connection.setRequestProperty(header, extra.get(header).toString()) }
                 connection.setRequestProperty("Content-Type", "application/json")
                 connection.connectTimeout = 15000
                 connection.readTimeout = 20000
@@ -270,6 +292,7 @@ class MainActivity : Activity() {
                 val body = JSONObject().put("model", selectedModel)
                     .put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", "Responda apenas: CLC conectado.")))
                     .put("max_tokens", 20)
+                if (prefs.getBoolean("json_response", false)) body.put("response_format", JSONObject().put("type", "json_object"))
                 connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
                 val status = connection.responseCode
                 if (status in 200..299) "Conexão funcionando! Modelo: $selectedModel"
