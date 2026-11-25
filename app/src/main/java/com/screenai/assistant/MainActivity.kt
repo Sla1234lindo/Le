@@ -44,7 +44,18 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        migrateLegacySettings()
         buildScreen()
+    }
+
+    private fun migrateLegacySettings() {
+        val old = getPreferences(0)
+        if (prefs.contains("api_key") || !old.contains("api_key")) return
+        val edit = prefs.edit()
+        for (key in listOf("api_key", "api_base_url", "api_model")) {
+            if (old.contains(key)) edit.putString(key, old.getString(key, "") ?: "")
+        }
+        edit.apply()
     }
 
     private fun buildScreen() {
