@@ -9,6 +9,9 @@ CLC é um assistente visual com bolha flutuante. A captura é iniciada pelo usu�
 - Chat com várias mensagens e perguntas de acompanhamento sobre a mesma captura.
 - Copiar resposta e limpar conversa.
 - Provedor, URL base, caminho de endpoint, modelo e chave configuráveis.
+- Cabeçalho de autenticação e prefixo de chave personalizáveis (Bearer, API-Key ou outros esquemas aceitos pelo serviço).
+- Cabeçalhos HTTP adicionais configuráveis em JSON.
+- Modo de resposta JSON opcional, quando suportado pelo provedor.
 - Presets para OpenAI, OpenRouter, Groq e Together AI, além de modo personalizado.
 - Teste de conexão com o provedor.
 - Temperatura, limite de tokens, tamanho do contexto e prompt de sistema configuráveis.
