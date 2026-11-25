@@ -38,9 +38,9 @@ class ScreenAssistService : Service() {
         return START_NOT_STICKY
     }
     private fun createNotification() {
-        val channelId = "screenai_capture"
-        if (Build.VERSION.SDK_INT >= 26) { val channel = NotificationChannel(channelId, "ScreenAI captura de tela", NotificationManager.IMPORTANCE_LOW); getSystemService(NotificationManager::class.java).createNotificationChannel(channel) }
-        val n = Notification.Builder(this, channelId).setContentTitle("ScreenAI ativo").setContentText("Toque na bolinha para analisar a tela").setSmallIcon(android.R.drawable.ic_menu_view).build()
+        val channelId = "potatoai_capture"
+        if (Build.VERSION.SDK_INT >= 26) { val channel = NotificationChannel(channelId, "Potato AI captura de tela", NotificationManager.IMPORTANCE_LOW); getSystemService(NotificationManager::class.java).createNotificationChannel(channel) }
+        val n = Notification.Builder(this, channelId).setContentTitle("Potato AI ativo").setContentText("Toque na bolinha para analisar a tela").setSmallIcon(android.R.drawable.ic_menu_view).build()
         if (Build.VERSION.SDK_INT >= 29) startForeground(77, n, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION) else startForeground(77, n)
     }
     private fun showBubble() {
@@ -68,14 +68,14 @@ class ScreenAssistService : Service() {
         val w = metrics.widthPixels; val h = metrics.heightPixels; val dpi = metrics.densityDpi
         reader?.close(); reader = ImageReader.newInstance(w, h, PixelFormat.RGBA_8888, 2)
         display?.release()
-        display = projection?.createVirtualDisplay("ScreenAI", w, h, dpi, DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, reader!!.surface, null, handler)
+        display = projection?.createVirtualDisplay("Potato AI", w, h, dpi, DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, reader!!.surface, null, handler)
         handler.postDelayed({
             try {
                 val image = reader?.acquireLatestImage() ?: return@postDelayed
                 val plane = image.planes[0]; val buffer = plane.buffer; val pixelStride=plane.pixelStride; val rowStride=plane.rowStride; val rowPadding=rowStride-pixelStride*w
                 val bmp=Bitmap.createBitmap(w+rowPadding/pixelStride,h,Bitmap.Config.ARGB_8888); bmp.copyPixelsFromBuffer(buffer); image.close()
                 val cropped=Bitmap.createBitmap(bmp,0,0,w,h); bmp.recycle()
-                val file=File(cacheDir,"screenai_capture.jpg"); FileOutputStream(file).use { cropped.compress(Bitmap.CompressFormat.JPEG,80,it) }; cropped.recycle()
+                val file=File(cacheDir,"potatoai_capture.jpg"); FileOutputStream(file).use { cropped.compress(Bitmap.CompressFormat.JPEG,80,it) }; cropped.recycle()
                 startActivity(Intent(this, AssistActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra("imagePath",file.absolutePath))
             } catch (_: Exception) { }
         }, 350)
