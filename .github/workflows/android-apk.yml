@@ -1,9 +1,9 @@
-name: Build ScreenAI APK
+name: Build Potato AI APK
 
 on:
   workflow_dispatch:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
 
 permissions:
   contents: write
@@ -14,7 +14,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Set up Java
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -23,20 +23,21 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.11.1'
-      - name: Build debug APK
-        run: gradle assembleDebug
-      - name: Upload APK
+      - name: Build Potato AI debug APK
+        run: gradle --no-daemon assembleDebug
+      - name: Upload Potato AI APK
         uses: actions/upload-artifact@v4
         with:
-          name: ScreenAI-debug-apk
+          name: PotatoAI-v21-alpha-debug
           path: app/build/outputs/apk/debug/*.apk
-      - name: Commit APK to dist branch
+          if-no-files-found: error
+      - name: Publish APK branch
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/debug/*.apk dist/ScreenAI-debug.apk
+          cp app/build/outputs/apk/debug/*.apk dist/PotatoAI-v21-alpha-debug.apk
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -B dist-apk
-          git add -f dist/ScreenAI-debug.apk
-          git commit -m "Build APK ${{ github.sha }}" --allow-empty
+          git add -f dist/PotatoAI-v21-alpha-debug.apk
+          git commit -m "Publish Potato AI v21 alpha APK" --allow-empty
           git push --force origin dist-apk
