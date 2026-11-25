@@ -1,31 +1,34 @@
-# ScreenAI — projeto Android
+# CLC — Assistente visual para Android
 
-Assistente Android com bolha flutuante. Ao tocar na bolha, captura a tela atual com a permissão do Android, abre uma tela de pergunta e envia a imagem para a API OpenAI apenas quando você toca em **Analisar tela**.
+Assistente visual com bolha flutuante. A captura só acontece quando o usuário toca na bolha; depois, é possível conversar com uma IA sobre a mesma imagem.
 
-## Requisitos
-- Android Studio recente
-- JDK 17
-- Android SDK Platform 35
-- Uma chave de API da OpenAI com acesso e saldo/créditos disponíveis
+## Recursos
 
-## Como gerar o APK
-1. Abra esta pasta no Android Studio (Open / Open Project).
-2. Aguarde o Gradle sincronizar e instalar os componentes necessários.
-3. Pressione **Build > Build APK(s)**.
-4. O APK de debug costuma ficar em `app/build/outputs/apk/debug/app-debug.apk`.
-5. Instale o APK no celular. Na primeira ativação, permita aparecer sobre outros apps e autorize a captura de tela.
+- Captura de tela iniciada pelo usuário usando a permissão oficial do Android.
+- Perguntas de acompanhamento sobre a captura atual.
+- Provedor configurável por URL base, chave de API e nome do modelo.
+- Compatibilidade com APIs OpenAI Chat Completions que aceitem entrada de imagem (vision).
+- Atalhos para resumir, explicar e sugerir ações.
+- Redimensionamento e compressão JPEG antes do envio.
+- Interface leve, sem bibliotecas visuais externas.
 
-## Uso
-1. Abra ScreenAI e insira sua chave de API.
-2. Toque em **Ativar assistente flutuante**.
-3. Aceite a captura de tela e toque na bolinha **AI** quando quiser analisar.
-4. Escreva uma pergunta e toque em **Analisar tela**.
-5. Para encerrar a captura e a bolinha, abra o app e toque em **Parar assistente**.
+## Configurar a IA
 
-## Privacidade e limitações
-- A captura é iniciada pelo usuário através do diálogo oficial do Android.
-- O app não faz monitoramento contínuo: só captura após tocar na bolinha.
-- A imagem é enviada à API quando a pergunta é enviada; use apenas em telas que você pode compartilhar.
-- A chave é armazenada nas preferências privadas do app, não em armazenamento seguro dedicado. Não compartilhe o aparelho/app com pessoas não confiáveis.
-- A API pode gerar custos. Este projeto é um protótipo e não inclui faturamento, login, nem proteção avançada da chave.
-- Não captura conteúdo protegido por DRM ou telas que o Android bloqueia.
+Na tela inicial, informe a URL base, o modelo e sua chave. Exemplo de URL base OpenAI: `https://api.openai.com/v1`. Use a URL base documentada pelo provedor que escolher.
+
+O CLC acrescenta `/chat/completions` automaticamente, a menos que a URL já termine nesse caminho. O provedor precisa suportar o formato OpenAI Chat Completions e imagens; compatibilidade apenas com texto não é suficiente para analisar capturas.
+
+**Nunca coloque chaves reais no código, README, commits ou prints.** A chave fica nas preferências privadas do app. Para distribuição pública, prefira um backend próprio ou armazenamento seguro.
+
+## Compilar
+
+Requisitos: Android Studio recente, JDK 17 e Android SDK 35. Abra o projeto e use **Build > Build APK(s)**.
+
+R8 e a redução de recursos estão ativados nos builds debug e release. O tamanho final depende das ferramentas e da arquitetura; 50 MB é uma meta a medir no APK gerado, não uma garantia.
+
+## Privacidade
+
+- Não existe captura contínua: é necessária ação explícita do usuário.
+- A imagem só é enviada quando uma pergunta é enviada.
+- Conteúdo protegido por DRM ou bloqueado pelo Android não pode ser capturado.
+- O uso da API pode gerar custos conforme o provedor e o modelo.
