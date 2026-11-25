@@ -205,7 +205,6 @@ class AssistActivity : Activity() {
                     ?.bufferedReader()?.use { it.readText() }.orEmpty()
                 val json = JSONObject(raw)
                 if (status !in 200..299) {
-                    conversation.remove(conversation.length() - 1)
                     val error = json.optJSONObject("error")?.optString("message")?.takeIf { it.isNotBlank() }
                         ?: "HTTP $status: $raw"
                     throw IllegalStateException(error)
