@@ -16,6 +16,13 @@ import android.widget.ImageView
 import android.widget.Toast
 import java.io.File
 import java.io.FileOutputStream
+import android.util.Base64
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.ByteArrayOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlin.concurrent.thread
 
 class ScreenAssistService : Service() {
     private var projection: MediaProjection? = null
@@ -25,6 +32,11 @@ class ScreenAssistService : Service() {
     private var wm: WindowManager? = null
     private val handler = Handler(Looper.getMainLooper())
     private var captureRequested = false
+    private var coachMode = false
+    private var coachBusy = false
+    private var lastCoachAt = 0L
+    private val coachIntervalMs = 12000L
+    private val coachLoop = object : Runnable { override fun run() { if (coachMode) { captureForCoach(); handler.postDelayed(this, coachIntervalMs) } } }
     private val captureTimeout = Runnable {
         captureRequested = false
         Toast.makeText(this, "Tempo esgotado ao capturar. Tente novamente.", Toast.LENGTH_SHORT).show()
@@ -60,7 +72,7 @@ class ScreenAssistService : Service() {
         }
         val notification = Notification.Builder(this, channelId)
             .setContentTitle("CLC está ativo")
-            .setContentText("Toque na bolha para capturar a tela. Toque em Parar para encerrar.")
+            .setContentText("Toque: analisar tela · Segure: ativar/desativar Coach de Volleyball Legends.")
             .setSmallIcon(android.R.drawable.ic_menu_view).build()
         if (Build.VERSION.SDK_INT >= 29) startForeground(77, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
         else startForeground(77, notification)
@@ -127,11 +139,11 @@ class ScreenAssistService : Service() {
         ).apply { gravity = Gravity.TOP or Gravity.END; x = 18; y = 300 }
 
         icon.setOnTouchListener(object : View.OnTouchListener {
-            var startX = 0f; var startY = 0f; var originX = 0; var originY = 0; var moved = false
+            var startX = 0f; var startY = 0f; var originX = 0; var originY = 0; var moved = false; var downAt = 0L
             override fun onTouch(view: View, event: MotionEvent): Boolean {
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
-                        startX = event.rawX; startY = event.rawY; originX = params.x; originY = params.y; moved = false
+                        startX = event.rawX; startY = event.rawY; originX = params.x; originY = params.y; moved = false; downAt = System.currentTimeMillis()
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
@@ -143,7 +155,7 @@ class ScreenAssistService : Service() {
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
-                        if (!moved) capture()
+                        if (!moved) {\n                            if (System.currentTimeMillis() - downAt >= 650L) toggleCoach() else capture()\n                        }
                         return true
                     }
                 }
